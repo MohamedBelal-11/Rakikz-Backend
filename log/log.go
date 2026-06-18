@@ -9,7 +9,11 @@ func Erorr(err *errors.AppError) {
 	if err == nil {
 		fmt.Println("No Error")
 	} else {
-		fmt.Printf("Error: [%d] %s\n", err.Code, err.Message)
+		fmt.Println(Serror(err))
 	}
+}
+
+func Serror (err *errors.AppError) string {
+	return fmt.Sprintf("Error: [%d] %s", err.Code, err.Message)
 }
 

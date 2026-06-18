@@ -23,10 +23,10 @@ func getNumbers () []string {
 
 var EnLittters = getEnLittters()
 
-var AllowedUsernameMarks = []string{"_", "-", "."}
+var AllowedUsernameMarks = []string{"_", "-"}
 
 var AllowedPasswordMarks = []string{
-	"_", "-", ".", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")",
+	"_", "-", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")",
 	"+", "=", "{", "}", "[", "]", "|", "\\", ":", ";", "'", "\"",
 	"<", ">", ",", ".", "?", "/"}
 

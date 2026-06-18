@@ -2,6 +2,8 @@ package database
 
 import (
 	"fmt"
+	"rakkiz-backend/b"
+	"rakkiz-backend/config"
 	"rakkiz-backend/errors"
 	"rakkiz-backend/log"
 
@@ -11,7 +13,16 @@ import (
 )
 
 func ConnectDB() *gorm.DB {
-  dsn := "host=aws-1-eu-central-1.pooler.supabase.com user=postgres.vjwkdeugeelqvvnvzohy password=V3?pnJjq9-7&Tx/ dbname=postgres port=5432 sslmode=require"
+  dsn := fmt.Sprintf(
+    "host=%s user=%s password=V3?pnJjq9-7&Tx/ dbname=postgres port=5432 sslmode=require",
+    b.Ter(config.Dev,
+      "aws-1-eu-central-1.pooler.supabase.com",
+      "db.vjwkdeugeelqvvnvzohy.supabase.co"),
+
+    b.Ter(config.Dev,
+      "postgres.vjwkdeugeelqvvnvzohy",
+      "postgres"),
+  )
 
   db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
     Logger: logger.Default.LogMode(logger.Silent),

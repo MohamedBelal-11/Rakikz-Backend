@@ -5,10 +5,10 @@ import (
 	"rakkiz-backend/database"
 	"rakkiz-backend/log"
 	"rakkiz-backend/models"
+	"rakkiz-backend/router"
 	"rakkiz-backend/slices"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -16,17 +16,10 @@ func main() {
   db := database.ConnectDB()
   db.AutoMigrate(&models.User{})
   test(db)
+  router.Runserver(db)
 }
 
-func runserver() {
-  r := gin.Default()
-  r.GET("/", func(c *gin.Context) {
-    c.JSON(200, gin.H{
-      "message": "Hello World",
-    })
-  })
-  r.Run(":8080")
-}
+
 
 func test(db *gorm.DB) {
   userService := models.UserService{Db: db}

@@ -2,12 +2,14 @@ package models
 
 import (
 	"rakkiz-backend/bstrings"
+	"rakkiz-backend/config"
 	"rakkiz-backend/errors"
 	"rakkiz-backend/validating"
 	"slices"
 	"time"
 	"unicode"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -19,10 +21,9 @@ const (
 	RoleSuperAdmin RoleType = "super_admin"
 )
 
-
 type User struct {
-	Username   string    `json:"username" gorm:"primaryKey;index"`
-	Role       RoleType  `json:"role" gorm:"default:user; not null;type:varchar(20);check:role IN ('user','admin','super_admin')"`
+	Username   string    `json:"username" gorm:"primaryKey"`
+	Role       RoleType  `json:"role" gorm:"default:user;not null;type:varchar(20);check:role IN ('user','admin','super_admin')"`
 	Email      string    `json:"email" gorm:"unique;not null"`
 	Name		   string    `json:"name" gorm:"not null"`
 	Password   string    `json:"password" gorm:"not null"`
@@ -30,6 +31,7 @@ type User struct {
 	LastLogin  time.Time `json:"last_login" gorm:"not null"`
 	IsVerified bool      `json:"verified" gorm:"not null"`
 	Otp        int			 `json:"otp" gorm:"not null"`
+	IsMuslim   *bool     `json:"is_muslim" gorm:"not null"`
 }
 
 type UserService struct {
@@ -77,6 +79,11 @@ func (s *UserService) Create(user *User) (*User, *errors.AppError) {
 		case RoleUser, RoleAdmin, RoleSuperAdmin:
 		default:
 			user.Role = RoleUser
+	}
+
+	if user.IsMuslim == nil {
+		tmp := true
+		user.IsMuslim = &tmp
 	}
 
 	now := time.Now()
@@ -291,4 +298,37 @@ func hasAllowedChars(name string) (bool, string) {
 		}
 	}
 	return true, ""
+}
+
+func GenerateToken(username string) (string, error) {
+	token := jwt.NewWithClaims(
+		jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"username": username,
+			"exp": time.Now().
+				Add(2 * 30 * 24 * time.Hour).
+				Unix(),
+		},
+	)
+
+	return token.SignedString(
+		[]byte(config.JWTSecret),
+	)
+}
+
+func Login(db *gorm.DB, tokenString string) *User {
+
+	token, err := jwt.Parse(
+		tokenString,
+		func(token *jwt.Token) (any, error) {
+			return []byte(config.JWTSecret), nil
+		},
+	)
+
+	if err == nil {
+		return nil
+	}
+
+	userService := UserService{Db: db}
+	return userService.GetByUsername(token.Claims.(jwt.MapClaims)["username"].(string))
 }
