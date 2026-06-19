@@ -8,7 +8,7 @@ import (
 )
 
 func isValidData(data io.Reader, v any) bool {
-	return json.NewDecoder(data).Decode(v) != nil
+	return json.NewDecoder(data).Decode(v) == nil
 }
 
 func response(

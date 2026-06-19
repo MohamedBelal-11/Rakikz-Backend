@@ -20,7 +20,7 @@ func Register(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req RegisterRequest
 
-		if !isValidData(r.Body, req) {
+		if !isValidData(r.Body, &req) {
 			errorResponse(
 				w,
 				&errors.AppError{
@@ -38,6 +38,7 @@ func Register(db *gorm.DB) http.HandlerFunc {
 			Email: req.Email,
 			Password: req.Password,
 			IsMuslim: &req.IsMuslim,
+			Name: req.Name,
 			IsVerified: true,
 		})
 
