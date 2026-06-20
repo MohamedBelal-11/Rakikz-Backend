@@ -14,7 +14,7 @@ func Runserver(db *gorm.DB) {
   r := newRouter()
 
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/register", views.Register(db))
+		r.Post("/register", views.RegisterView(db))
 	})
 
   fmt.Println("Server runs on port 8000")

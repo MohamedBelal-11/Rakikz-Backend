@@ -1,6 +1,6 @@
 package bstrings
 
-func getEnLittters () []string {
+func getEnLittters() []string {
 	letters := []string{}
 
 	for ch := 'a'; ch <= 'z'; ch++ {
@@ -12,7 +12,7 @@ func getEnLittters () []string {
 	return letters
 }
 
-func getNumbers () []string {
+func getNumbers() []string {
 	numbers := []string{}
 
 	for ch := '0'; ch <= '9'; ch++ {

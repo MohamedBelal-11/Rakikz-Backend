@@ -12,17 +12,17 @@ func isValidData(data io.Reader, v any) bool {
 }
 
 func response(
-	w http.ResponseWriter,
+	w *http.ResponseWriter,
 	data map[string]any,
 	status int,
 ) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	(*w).Header().Set("Content-Type", "application/json")
+	(*w).WriteHeader(status)
+	json.NewEncoder(*w).Encode(data)
 }
 
 func errorResponse(
-	w http.ResponseWriter,
+	w *http.ResponseWriter,
 	err *errors.AppError,
 	status int,
 ) {

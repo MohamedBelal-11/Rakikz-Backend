@@ -13,7 +13,7 @@ func Erorr(err *errors.AppError) {
 	}
 }
 
-func Serror (err *errors.AppError) string {
-	return fmt.Sprintf("Error: [%d] %s", err.Code, err.Message)
-}
+func Serror (err *errors.AppError) *string {
+	return &[]string{fmt.Sprintf("Error: [%d] %s", err.Code, err.Message)}[0]
+	}
 

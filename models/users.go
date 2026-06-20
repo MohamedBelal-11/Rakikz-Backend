@@ -1,13 +1,11 @@
 package models
 
 import (
-	"rakkiz-backend/bstrings"
+	"fmt"
 	"rakkiz-backend/config"
 	"rakkiz-backend/errors"
 	"rakkiz-backend/validating"
-	"slices"
 	"time"
-	"unicode"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -39,32 +37,44 @@ type UserService struct {
 }
 
 type List[T any] struct {
-	All []T
+	All *[]*T
 }
 
 func (s *UserService) Create(user *User) (*User, *errors.AppError) {
-	usered := s.GetByUsername(user.Username)
-
-	if usered != nil {
-		if usered.IsVerified {
-			return nil, &errors.AppError{
-				Code:    11014,
-				Message: "Username is already taken",
-			}
+	if user == nil {
+	return nil, &errors.AppError{
+			Code:    11019,
+			Message: "Missing user data",
 		}
-		err := usered.Delete(s.Db)
-		if err != nil {return nil, err}
 	}
 
-	if usered != nil {
-		if usered.IsVerified {
-			return nil, &errors.AppError{
-				Code:    11015,
-				Message: "Email is already taken",
+	for _, i := range []struct{
+		field string
+		code  int
+		user  *User
+	} {
+		{
+			field: "Username",
+			code: 11014,
+			user: s.GetByUsername(user.Username),
+		},
+		{
+			field: "Email",
+			code: 11015,
+			user: s.Objects().Get(func(u *User) bool {return user.Email == u.Email}),
+		},
+	} {
+		if i.user != nil {
+			if i.user.IsVerified {
+				return nil, &errors.AppError{
+					Code:    i.code,
+					Message: fmt.Sprintf("%s is already taken", i.field),
+				}
 			}
+
+			err := i.user.Delete(s.Db)
+			if err != nil {return nil, err}
 		}
-		err := usered.Delete(s.Db)
-		if err != nil {return nil, err}
 	}
 
 	err := ValidateUser(user)
@@ -96,10 +106,10 @@ func (s *UserService) Create(user *User) (*User, *errors.AppError) {
 	return user, nil
 }
 
-func (s *UserService) Objects() List[User] {
-	var users []User
+func (s *UserService) Objects() *List[User] {
+	var users []*User
 	s.Db.Find(&users)
-	return List[User]{All: users}
+	return &List[User]{All: &users}
 }
 
 func (s *UserService) GetByUsername(username string) *User {
@@ -114,23 +124,23 @@ func (s *UserService) GetByUsername(username string) *User {
 	return &user
 }
 
-func (l *List[T]) Get(fn func(T) bool) *T {
-	for _, item := range l.All {
+func (l *List[T]) Get(fn func(*T) bool) *T {
+	for _, item := range *l.All {
 		if fn(item) {
-			return &item
+			return item
 		}
 	}
 	return nil
 }
 
-func (user *User) Delete(db *gorm.DB) *errors.AppError {
+func (user User) Delete(db *gorm.DB) *errors.AppError {
 	return errors.Errorize(db.Unscoped().Delete(user).Error)
 }
 
-func (user *User) Save(db *gorm.DB) *errors.AppError {
+func (user User) Save(db *gorm.DB) *errors.AppError {
 	userService := UserService{Db: db}
-	users := userService.Objects()
-	usered := users.Get(func(u User) bool { return u.Username == user.Username })
+	
+	usered := userService.GetByUsername(user.Username)
 
 	if usered == nil {
 		return &errors.AppError{
@@ -139,7 +149,12 @@ func (user *User) Save(db *gorm.DB) *errors.AppError {
 		}	
 	}
 
-	usered = users.Get(func(u User) bool { return u.Email == user.Email })
+	usered = userService.Objects().Get(
+		func(u *User) bool {
+			return u.Email == user.Email
+		},
+	)
+
 	if usered != nil && usered.Username != user.Username {
 		if usered.IsVerified {
 			return &errors.AppError{
@@ -150,14 +165,14 @@ func (user *User) Save(db *gorm.DB) *errors.AppError {
 		usered.Delete(db)
 	}
 
-	err := ValidateUser(user)
+	err := ValidateUser(&user)
 
 	if err != nil {return err}
 
 	return errors.Errorize(db.Save(user).Error)
 }
 
-func (user *User) ChangePasswordAndSave(db *gorm.DB, password string) *errors.AppError {
+func (user User) ChangePasswordAndSave(db *gorm.DB, password string) *errors.AppError {
 	pass, err := HashPassword(password)
 	if err != nil {return err}
 
@@ -172,135 +187,24 @@ func HashPassword(password string) (string, *errors.AppError) {
 }
 
 func CheckPassword(hash, password string) bool {
-    return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+  return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
 func ValidateUser(user *User) *errors.AppError {
-	if user.Username == "" {
-		return &errors.AppError{
-			Code:    11000,
-			Message: "Username is required",
-		}
-	}
-
-	if len(user.Username) < 3 || len(user.Username) > 25 {
-		return &errors.AppError{
-			Code:    11006,
-			Message: "Username must be between 3 and 25 characters",
-		}
-	}
-
-	allowed, char := validating.IsFromChars(user.Username, usernameAllowedChars)
-	if allowed == false {
-		return &errors.AppError{
-			Code:    11001,
-			Message: "Username contains invalid characters: " + char,
-		}
-	}
-
-	if user.Email == "" {
-		return &errors.AppError{
-			Code:    11002,
-			Message: "Email is required",
-		}
-	}
-
-	if len(user.Email) > 100 {
-		return &errors.AppError{
-			Code:    11008,
-			Message: "Email must be less than 100 characters",
-		}
-	}
-
-	if validating.HasNotAllowedSpace(user.Email) {
-		return &errors.AppError{
-			Code:    11013,
-			Message: "Email contains not allowed spaces",
-		}
-	}
-
-	if !validating.IsValidEmail(user.Email) {
-		return &errors.AppError{
-			Code:    11003,
-			Message: "Email is invalid",
-		}
-	}
-
-	if user.Name == "" {
-		return &errors.AppError{
-			Code:    11004,
-			Message: "Name is required",
-		}
-	}
-
-	if validating.HasNotAllowedSpace(user.Name) {
-		return &errors.AppError{
-			Code:    11005,
-			Message: "Name contains not allowed spaces",
-		}
-	} 
-
-	if len(user.Name) < 3 || len(user.Name) > 25 {
-		return &errors.AppError{
-			Code:    11007,
-			Message: "Name must be between 3 and 25 characters",
-		}
-	}
-	allowed, char = hasAllowedChars(user.Name)
-	if !allowed {
-		return &errors.AppError{
-			Code:    1109,
-			Message: "Name contains invalid characters",
-		}
-	}
-
-	if user.Password == "" {
-		return &errors.AppError{
-			Code:    11010,
-			Message: "Password is required",
-		}
-	}
-
-	if len(user.Password) < 8 || len(user.Password) > 200 {
-		return &errors.AppError{
-			Code:    11011,
-			Message: "Password must be between 8 and 200 characters",
-		}
-	}
-
-	allowed, char = validating.IsFromChars(user.Password, passwordAllowedChars)
-	if !allowed {
-		return &errors.AppError{
-			Code:    11012,
-			Message: "Password contains invalid characters: " + char,
+	for _, err := range ([]*errors.AppError{
+		validating.ValidateUsername(user.Username),
+		validating.ValidateEmail(user.Email),
+		validating.ValidateName(user.Name),
+		validating.ValidatePassword(user.Password),
+	}) {
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-
-var usernameAllowedChars = slices.Concat(
-	bstrings.AllowedUsernameMarks,
-	bstrings.EnLittters,
-	bstrings.Numbers,
-)
-
-var passwordAllowedChars = slices.Concat(
-	bstrings.AllowedPasswordMarks,
-	bstrings.EnLittters,
-	bstrings.Numbers,
-)
-
-func hasAllowedChars(name string) (bool, string) {
-	for _, ch := range name {
-		if !unicode.IsLetter(ch) && !unicode.IsNumber(ch) && !(string(ch) == " ") {
-			return false, string(ch)
-		}
-	}
-	return true, ""
-}
-
-func GenerateToken(username string) (string, error) {
+func GenerateToken(username string) (string, *errors.AppError) {
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		jwt.MapClaims{
@@ -311,9 +215,10 @@ func GenerateToken(username string) (string, error) {
 		},
 	)
 
-	return token.SignedString(
+	t, err := token.SignedString(
 		[]byte(config.JWTSecret),
 	)
+	return t, errors.Errorize(err)
 }
 
 func Login(db *gorm.DB, tokenString string) *User {

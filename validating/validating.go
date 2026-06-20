@@ -1,9 +1,10 @@
 package validating
 
 import (
-	"net/mail"
 	"strings"
 )
+
+
 
 func IsFromChars(str string, chars []string) (bool, string) {
 	for _, ch := range str {
@@ -22,10 +23,7 @@ func IsFromChars(str string, chars []string) (bool, string) {
 	return true, ""
 }
 
-func IsValidEmail(email string) bool {
-	_, err := mail.ParseAddress(email)
-	return err == nil
-}
+
 
 func HasNotAllowedSpace(str string) bool {
 	return strings.HasPrefix(str, " ") || strings.HasSuffix(str, " ") || strings.Contains(str, "  ")

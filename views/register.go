@@ -16,13 +16,13 @@ type RegisterRequest struct {
 	IsMuslim bool   `json:"is_muslim"`
 }
 
-func Register(db *gorm.DB) http.HandlerFunc {
+func RegisterView(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req RegisterRequest
 
 		if !isValidData(r.Body, &req) {
 			errorResponse(
-				w,
+				&w,
 				&errors.AppError{
 					Code: 11017,
 					Message: "Not valid data",
@@ -32,8 +32,7 @@ func Register(db *gorm.DB) http.HandlerFunc {
 			return
 		}
 
-		userService := models.UserService{Db: db}
-		_, err := userService.Create(&models.User{
+		_, err := (&models.UserService{Db: db}).Create(&models.User{
 			Username: req.Username,
 			Email: req.Email,
 			Password: req.Password,
@@ -44,7 +43,7 @@ func Register(db *gorm.DB) http.HandlerFunc {
 
 		if err != nil {
 			errorResponse(
-				w,
+				&w,
 				err,
 				http.StatusBadRequest,
 			)
@@ -52,7 +51,7 @@ func Register(db *gorm.DB) http.HandlerFunc {
 		}
 
 		response(
-			w,
+			&w,
 			map[string]any{
 				"success": true,
 			},
